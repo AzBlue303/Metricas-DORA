@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",                  // Versión de JavaScript objetivo
+    "module": "NodeNext",                // Sistema de módulos
+    "moduleResolution": "NodeNext",      // Estrategia de resolución de módulos
+    "esModuleInterop": true,             // Para compatibilidad con módulos CommonJS
+    "outDir": "./dist",                  // Directorio para archivos compilados
+    "rootDir": "./src",                  // Directorio con archivos fuente
+    "strict": true,                      // Habilita todas las comprobaciones estrictas de tipo
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],               // Archivos a incluir en la compilación
+  "exclude": ["node_modules"]            // Archivos a excluir
+}

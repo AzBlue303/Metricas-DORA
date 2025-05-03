@@ -1,0 +1,28 @@
+{
+  "name": "metricas-dora",
+  "version": "1.0.0",
+  "description": "Sistema de métricas DORA para medir la eficiencia y la calidad en repositorios Git.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "typescript",
+    "node"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "metricas-dora": "file:",
+    "simple-git": "^3.27.0"
+  }
+}
