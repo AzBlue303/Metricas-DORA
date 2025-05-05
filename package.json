@@ -25,8 +25,9 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "canvas": "^3.1.0",
+    "chart.js": "^4.4.9",
     "dotenv": "^16.5.0",
-    "metricas-dora": "file:",
-    "simple-git": "^3.27.0"
+    "metricas-dora": "file:"
   }
 }
