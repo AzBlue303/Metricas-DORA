@@ -89,8 +89,8 @@ export class CalcLTFC implements PluginOptions {
 
                 // Calcular la diferencia en días
                 const diferenciaDias = Math.round((fechaVersion.getTime() - fechaCommit.getTime()) / (1000 * 60 * 60 * 24));
-
-                this.dataGraph.commit.push(commitPrevio.sha);
+                // push los primeros 7 caracteres del sha
+                this.dataGraph.commit.push(commitPrevio.sha.substring(0, 7));
                 this.dataGraph.dias.push(diferenciaDias);
 
                 console.log(`Version: ${tag.name}, Fecha Version: ${fechaVersion.toISOString()}, Fecha Commit: ${fechaCommit.toISOString()}, Diferencia: ${diferenciaDias} días`);
