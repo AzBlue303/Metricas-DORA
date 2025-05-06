@@ -3,10 +3,7 @@ import { GraphGenerator } from "../kernel/GraphGenerator";
 
 import { console } from "inspector";
 
-import dotenv from 'dotenv';
-dotenv.config();
-
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+import simpleGit from "simple-git";
 
 export class CalcLTFC implements PluginOptions {
     nameMetric: string = "CalcLTFC";
@@ -33,72 +30,62 @@ export class CalcLTFC implements PluginOptions {
 
     async calcMetrics(...args: any[]): Promise<any> {
         try {
-            // Extraer el owner y repo de la URL
-            [, this.owner, this.repo] = this.repoPath.match(/github\.com\/([^\/]+)\/([^\/]+)/) || [];
-            if (!this.owner || !this.repo) throw new Error("La URL del repositorio no es válida.");
 
-            const apiUrl = `https://api.github.com/repos/${this.owner}/${this.repo}/tags`;
-            const response = await fetch(apiUrl, {
-                headers: {
-                    Authorization: `Bearer ${GITHUB_TOKEN}`,
-                },
-            });
-            const tags = await response.json();
+            const git = simpleGit(this.repoPath);
+            const tags = (await git.tags()).all;
 
-            let tagsFiltrados = await Promise.all(
-                tags.map(async (tag: { name: string; commit: { sha: string } }) => {
-                    const commitUrl = `https://api.github.com/repos/${this.owner}/${this.repo}/commits/${tag.commit.sha}`;
-                    const commitResponse = await fetch(commitUrl, {
-                        headers: {
-                            Authorization: `Bearer ${GITHUB_TOKEN}`,
-                        },
-                    });
-                    const commitData = await commitResponse.json();
+            const tagsPorFecha = await Promise.all(
+                tags.map(async tag => {
+                    const log = await git.raw(["log", "-1", "--format=%ai", tag]);
+                    // retorno el tag si la fecha es del año 2023
+                    const fecha = log.split(" ")[0].split("-")[0];
 
-                    const fechaCommit = new Date(commitData.commit.author.date);
-                    const esDelAño = fechaCommit.getFullYear().toString() === this.yearRepo;
-                    const esEstable = !tag.name.match(/-rc|-beta|-alpha/); // Excluir versiones no estables
+                    if (fecha === this.yearRepo) {
+                        return tag;
+                    }
+                })).then(tags => tags.filter(tag => tag !== undefined));
 
-                    return esDelAño && esEstable ? tag : null;
+            const tagsFiltrados = await Promise.all(
+                tagsPorFecha.map(async tag => {
+                    if (!/rc|beta|alpha/.test(tag)) {
+                        return tag;
+                    }
                 })
-            );
-            tagsFiltrados = tagsFiltrados.filter(tag => tag);
-            console.log("Versiones estables del año: ", tagsFiltrados);
-            const resultadosLTFC = await Promise.all(tagsFiltrados.map(async (tag: { name: string; commit: { sha: string } }) => {
-                const commitUrl = `https://api.github.com/repos/${this.owner}/${this.repo}/commits/${tag.commit.sha}`;
-                const commitResponse = await fetch(commitUrl, {
-                    headers: {
-                        Authorization: `Bearer ${GITHUB_TOKEN}`,
-                    },
-                });
-                const commitData = await commitResponse.json();
-                const fechaVersion = new Date(commitData.commit.author.date);
+            ).then(tags => tags.filter(tag => tag !== undefined));
 
-                // Obtener el último commit ANTES del tag
-                const commitsUrl = `https://api.github.com/repos/${this.owner}/${this.repo}/commits?sha=${tag.commit.sha}&per_page=2`; // Aumentamos el número de commits consultados
-                const commitsResponse = await fetch(commitsUrl, {
-                    headers: { Authorization: `Bearer ${GITHUB_TOKEN}` }
-                });
-                const commitsData = await commitsResponse.json();
-                // Buscar el commit más cercano anterior al SHA del tag
-                const commitPrevio = commitsData.reverse().find((commit: { commit: { author: { date: string } } }) => new Date(commit.commit.author.date) < fechaVersion);
+            const dataGraph: { dias: number[]; commit: string[] } = { dias: [], commit: [] };
 
-                if (!commitPrevio) throw new Error("No se encontró un commit previo al tag.");
+            const dataTags = await Promise.all(
+                tagsFiltrados.map(async tag => {
+                    const log = await git.raw(["log", "-1", "--format=%ai", tag]);
 
-                const fechaCommit = new Date(commitPrevio.commit.author.date);
+                    const sha = await git.raw(["rev-list", "-n", "1", tag]);
 
-                // Calcular la diferencia en días
-                const diferenciaDias = Math.round((fechaVersion.getTime() - fechaCommit.getTime()) / (1000 * 60 * 60 * 24));
-                // push los primeros 7 caracteres del sha
-                this.dataGraph.commit.push(commitPrevio.sha.substring(0, 7));
-                this.dataGraph.dias.push(diferenciaDias);
+                    const prevSha = await git.raw(["rev-list", "-n", "1", `${tag}^1`]);
 
-                console.log(`Version: ${tag.name}, Fecha Version: ${fechaVersion.toISOString()}, Fecha Commit: ${fechaCommit.toISOString()}, Diferencia: ${diferenciaDias} días`);
-                return { version: tag.name, dias: diferenciaDias };
-            }));
+                    const commitPrevius = await git.raw(["log", "-1", "--format=%ai", prevSha.trim()]);
 
-            this.resultLTFC = this.calcPromedio(resultadosLTFC);
-            this.makeGraph(this.dataGraph);
+                    const fecha1 = new Date(log.trim());
+                    const fecha2 = new Date(commitPrevius.trim());
+
+                    const diferencia = Math.abs(fecha1.getTime() - fecha2.getTime());
+
+                    console.log(`Version: ${tag}, Fecha Version: ${fecha1}, Fecha Commit: ${fecha2}, Diferencia: ${Math.floor(diferencia / (1000 * 60 * 60 * 24))} días`);
+                    return { tag: tag, fecha: log, commit: commitPrevius, sha: sha, diferencia: Math.floor(diferencia / (1000 * 60 * 60 * 24)) };
+                }));
+
+            console.log(dataGraph);
+            dataTags.forEach(tag => {
+                if (tag) {
+                    dataGraph.dias.push(tag.diferencia);
+                    dataGraph.commit.push(tag.sha.substring(0, 7));
+                    console.log(tag.diferencia, tag.sha.substring(0, 7));
+                }
+            });
+            const graphGenerator = new GraphGenerator(dataGraph, "C:/Users/ignac/OneDrive/Escritorio/(S)UFRO/2025/Semestre 1/Arqui/TareaMDORA/metricas-dora/CalculoLTFC.png");
+            graphGenerator.exportToPNG();
+
+            this.resultLTFC = Math.round(dataGraph.dias.reduce((a, b) => a + b, 0) / dataGraph.dias.length * 100) / 100;
         } catch (error) {
             console.error("Error calculando Life Time for Changes: ", error);
             this.resultLTFC = 0;
@@ -107,16 +94,8 @@ export class CalcLTFC implements PluginOptions {
         }
         return this.resultLTFC;
     }
-    makeGraph(dataGraph: { dias: number[]; commit: string[] }) {
-        const graphGenerator = new GraphGenerator(dataGraph, this.outputPath + `CalculoLTFC${this.repo}.png`);
-        graphGenerator.exportToPNG();
-    }
+
     terminate(): void {
         console.log("Calculo terminado, resultado: ", this.resultLTFC);
-    }
-    calcPromedio(resultadosLTFC: { version: string; dias: number; }[]): number {
-        return resultadosLTFC.reduce((acumulador, resultado) => {
-            return acumulador + resultado.dias;
-        }, 0) / resultadosLTFC.length;
     }
 }
