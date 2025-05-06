@@ -34,16 +34,16 @@ export class CalcMTTR implements PluginOptions {
                         return { tag: tag, fecha: log.split(" ")[0] };
                     }
                 })).then(tags => tags.filter(tag => tag !== undefined));
-                const dias = tagsPorFecha.map((tag, index, arr) => {
-                    if ((tag.tag).includes("-rc")) {
-                        const diferenciaDias = Math.abs(new Date(tag.fecha).getTime() - new Date(this.findPreviousNonRC(arr, index).fecha).getTime()) / (1000 * 3600 * 24);
-                        return diferenciaDias;
-                    }
-                }).filter(dia => dia !== undefined);
-                const sumaDias = dias.reduce((acc, dia) => acc + dia, 0);
-                const promedioDias = sumaDias / dias.length;
-                this.resultMTTR = Math.round(promedioDias * 100) / 100;
-                return this.resultMTTR;
+            const dias = tagsPorFecha.map((tag, index, arr) => {
+                if ((tag.tag).includes("-rc")) {
+                    const diferenciaDias = Math.abs(new Date(tag.fecha).getTime() - new Date(this.findPreviousNonRC(arr, index).fecha).getTime()) / (1000 * 3600 * 24);
+                    return diferenciaDias;
+                }
+            }).filter(dia => dia !== undefined);
+            const sumaDias = dias.reduce((acc, dia) => acc + dia, 0);
+            const promedioDias = sumaDias / dias.length;
+            this.resultMTTR = Math.round(promedioDias * 100) / 100;
+            return this.resultMTTR;
         }
         catch (error) {
             console.error("Error calculating Mean Time To Recovery: ", error);
@@ -65,5 +65,5 @@ export class CalcMTTR implements PluginOptions {
         console.log("Calculo terminado, resultado: " + this.resultMTTR);
     }
 
-    
+
 }
