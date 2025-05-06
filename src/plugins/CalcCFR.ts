@@ -2,10 +2,7 @@ import { PluginOptions } from "./PluginOptions";
 
 import { console } from "inspector";
 
-import dotenv from 'dotenv';
-dotenv.config();
-
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+import simpleGit from "simple-git";
 
 export class CalcCFR implements PluginOptions {
     nameMetric: string = "CalcCFR";
@@ -29,55 +26,37 @@ export class CalcCFR implements PluginOptions {
         let versionesFallidas = [];
 
         try {
-            const [, owner, repo] = this.repoPath.match(/github\.com\/([^\/]+)\/([^\/]+)/) || [];
-            if (!owner || !repo) throw new Error("La URL del repositorio no es válida.");
+            const git = simpleGit(this.repoPath);
+            const tags = (await git.tags()).all;
 
-            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/tags`;
-            const response = await fetch(apiUrl, {
-                headers: {
-                    Authorization: `Bearer ${GITHUB_TOKEN}`,
-                },
-            });
-            const tags = await response.json();
+            const tagsPorFecha = await Promise.all(
+                tags.map(async tag => {
+                    const log = await git.raw(["log", "-1", "--format=%ai", tag]);
+                    // retorno el tag si la fecha es del año 2023
+                    const fecha = log.split(" ")[0].split("-")[0];
+                    if (fecha === this.yearRepo) {
+                        return {tag: tag};
+                    }
+                })).then(tags => tags.filter(tag => tag !== undefined));
 
-            const tagsEstables = await Promise.all(
-                tags.map(async (tag: { name: string; commit: { sha: string } }) => {
-                    const commitUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${tag.commit.sha}`;
-                    const commitResponse = await fetch(commitUrl, {
-                        headers: {
-                            Authorization: `Bearer ${GITHUB_TOKEN}`,
-                        },
-                    });
-                    const commitData = await commitResponse.json();
-
-                    const fechaCommit = new Date(commitData.commit.author.date);
-                    const esDelAño = fechaCommit.getFullYear().toString() === this.yearRepo;
-                    const esEstable = !tag.name.match(/-rc|-beta|-alpha/); // Excluir versiones no estables
-
-                    return esDelAño && esEstable ? tag.name : null;
-                })
-            );
-            const tagsFallidos = await Promise.all(
-                tags.map(async (tag: { name: string; commit: { sha: string } }) => {
-                    const commitUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${tag.commit.sha}`;
-                    const commitResponse = await fetch(commitUrl, {
-                        headers: {
-                            Authorization: `Bearer ${GITHUB_TOKEN}`,
-                        },
-                    });
-                    const commitData = await commitResponse.json();
-
-                    const fechaCommit = new Date(commitData.commit.author.date);
-                    const esDelAño = fechaCommit.getFullYear().toString() === this.yearRepo;
-                    // excluye todo menos las versiones con -rc al final del name
-
-                    const esFallido = tag.name.endsWith("-rc");
-                    return esDelAño && esFallido ? tag.name : null;
-                })
-            );
-            versionesEstables = tagsEstables.filter(tag => tag);
-            versionesFallidas = tagsFallidos.filter(tag => tag);
+                const tagsEstables = await Promise.all(
+                    tagsPorFecha.map(async tag => {
+                        if (!/rc|beta|alpha/.test(tag.tag)) {
+                            return tag;
+                        }
+                    }
+                )).then(tags => tags.filter(tag => tag !== undefined));
+                const tagsFallidos = await Promise.all(
+                    tagsPorFecha.map(async tag => {
+                        if (tag.tag.includes("rc")) {
+                            return tag;
+                        }
+                    }
+                )).then(tags => tags.filter(tag => tag !== undefined));
+            versionesEstables = tagsEstables;
+            versionesFallidas = tagsFallidos;
             this.resultCFR = (versionesFallidas.length / (versionesEstables.length + versionesFallidas.length)) * 100;
+            this.resultCFR = Math.round(this.resultCFR * 100) / 100; // Redondear a dos decimales
             console.log("Tags estables: ", versionesEstables, " Tags fallidos: ", versionesFallidas, " CFR: ", this.resultCFR);
         }
         catch (error) {
