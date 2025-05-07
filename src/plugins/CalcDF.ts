@@ -2,10 +2,7 @@ import { PluginOptions } from "./PluginOptions";
 
 import { console } from "inspector";
 
-import dotenv from 'dotenv';
-dotenv.config();
-
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+import simpleGit from "simple-git";
 
 export class CalcDF implements PluginOptions {
     nameMetric: string = "CalcDF";
@@ -27,46 +24,35 @@ export class CalcDF implements PluginOptions {
     async calcMetrics(...args: any[]): Promise<any> {
         let versionesEstables = [];
         try {
-            // Extraer el owner y repo de la URL
-            const [, owner, repo] = this.repoPath.match(/github\.com\/([^\/]+)\/([^\/]+)/) || [];
-            if (!owner || !repo) throw new Error("La URL del repositorio no es válida.");
+            const git = simpleGit(this.repoPath);
+            const tags = (await git.tags()).all;
 
-            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/tags`;
-            const response = await fetch(apiUrl, {
-                headers: {
-                    Authorization: `Bearer ${GITHUB_TOKEN}`,
-                },
-            });
-            const tags = await response.json();
-
+            const tagsPorFecha = await Promise.all(
+                tags.map(async tag => {
+                    const log = await git.raw(["log", "-1", "--format=%ai", tag]);
+                    // retorno el tag si la fecha es del año 2023
+                    const fecha = log.split(" ")[0].split("-")[0];
+                    if (fecha === this.yearRepo) {
+                        return tag;
+                    }
+                })).then(tags => tags.filter(tag => tag !== undefined));
             const tagsFiltrados = await Promise.all(
-                tags.map(async (tag: { name: string; commit: { sha: string } }) => {
-                    const commitUrl = `https://api.github.com/repos/${owner}/${repo}/commits/${tag.commit.sha}`;
-                    const commitResponse = await fetch(commitUrl, {
-                        headers: {
-                            Authorization: `Bearer ${GITHUB_TOKEN}`,
-                        },
-                    });
-                    const commitData = await commitResponse.json();
-
-                    const fechaCommit = new Date(commitData.commit.author.date);
-                    const esDelAño = fechaCommit.getFullYear().toString() === this.yearRepo;
-                    const esEstable = !tag.name.match(/-rc|-beta|-alpha/); // Excluir versiones no estables
-
-                    return esDelAño && esEstable ? tag.name : null;
+                tagsPorFecha.map(async tag => {
+                    if (!/rc|beta|alpha/.test(tag)) {
+                        return tag;
+                    }
                 })
-            );
+            ).then(tags => tags.filter(tag => tag !== undefined));
 
             // Filtrar valores nulos y retornar los tags estables del año
-            versionesEstables = tagsFiltrados.filter(tag => tag);
-            this.resultDF = versionesEstables.length;
+            this.resultDF = tagsFiltrados.length;
         } catch (error) {
             console.error("Error calculating Deployment Frequency: ", error);
             this.resultDF = 0;
         } finally {
             console.log("Deployment Frequency calculation finished.");
         }
-        return versionesEstables.length;
+        return this.resultDF;
     }
 
     terminate(): void {
