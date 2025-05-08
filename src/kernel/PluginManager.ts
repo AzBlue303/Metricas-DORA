@@ -1,19 +1,17 @@
 import { PluginOptions } from "../plugins/PluginOptions";
 
-type PluginParams = Record<string, string>;
+type PluginParams = Record<string, string | undefined>;
 
 export class PluginManager {
     private plugins: Map<string, PluginOptions> = new Map();
 
-    async loadPlugin(name: string, params: PluginParams): Promise<PluginOptions | null> {
+    async loadPlugin(name: string, params: PluginParams): Promise<void> {
         try {
-            const pluginModule = require(`./plugins/${name}`);
+            const pluginModule = require(`../plugins/${name}`);
             const plugin = pluginModule.createPlugin(params);
             this.plugins.set(name, plugin);
-            return plugin;
         } catch (error) {
             console.error(`Error cargando el plugin ${name}:`, error);
-            return null;
         }
     }
 

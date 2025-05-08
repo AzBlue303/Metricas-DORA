@@ -80,7 +80,7 @@ export class CalcLTFC implements PluginOptions {
                     console.log(tag.diferencia, tag.sha.substring(0, 7));
                 }
             });
-            const graphGenerator = new GraphGenerator(dataGraph, "C:/Users/ignac/OneDrive/Escritorio/(S)UFRO/2025/Semestre 1/Arqui/TareaMDORA/metricas-dora/CalculoLTFC.png");
+            const graphGenerator = new GraphGenerator(dataGraph, this.outputPath + "/CalculoLTFC.png");
             graphGenerator.exportToPNG();
 
             this.resultLTFC = Math.round(dataGraph.dias.reduce((a, b) => a + b, 0) / dataGraph.dias.length * 100) / 100;
