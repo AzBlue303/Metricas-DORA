@@ -14,8 +14,6 @@ export class CalcLTFC implements PluginOptions {
 
     dataGraph: { dias: number[]; commit: string[] } = { dias: [], commit: [] };
     outputPath: string;
-    owner: string = "";
-    repo: string = "";
 
     constructor(srcRepoPath: string, srcOutpoutPath: string, yearRepo: string) {
         this.repoPath = srcRepoPath;
@@ -28,7 +26,7 @@ export class CalcLTFC implements PluginOptions {
         console.log("Calculando Lead Time for Changes...");
     }
 
-    async calcMetrics(...args: any[]): Promise<any> {
+    async calcMetrics(): Promise<any> {
         try {
 
             const git = simpleGit(this.repoPath);
@@ -82,7 +80,7 @@ export class CalcLTFC implements PluginOptions {
                     console.log(tag.diferencia, tag.sha.substring(0, 7));
                 }
             });
-            const graphGenerator = new GraphGenerator(dataGraph, "C:/Users/ignac/OneDrive/Escritorio/(S)UFRO/2025/Semestre 1/Arqui/TareaMDORA/metricas-dora/CalculoLTFC.png");
+            const graphGenerator = new GraphGenerator(dataGraph, this.outputPath + "/CalculoLTFC.png");
             graphGenerator.exportToPNG();
 
             this.resultLTFC = Math.round(dataGraph.dias.reduce((a, b) => a + b, 0) / dataGraph.dias.length * 100) / 100;
@@ -98,4 +96,8 @@ export class CalcLTFC implements PluginOptions {
     terminate(): void {
         console.log("Calculo terminado, resultado: ", this.resultLTFC);
     }
+}
+
+export function createPlugin(params: {srcRepoPath: string, srcOutputPath: string, yearRepo: string}): PluginOptions {
+    return new CalcLTFC(params.srcRepoPath, params.srcOutputPath, params.yearRepo);
 }

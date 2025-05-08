@@ -21,8 +21,7 @@ export class CalcDF implements PluginOptions {
         console.log("Calculando Deployment Frequency...");
     }
 
-    async calcMetrics(...args: any[]): Promise<any> {
-        let versionesEstables = [];
+    async calcMetrics(): Promise<any> {
         try {
             const git = simpleGit(this.repoPath);
             const tags = (await git.tags()).all;
@@ -58,4 +57,8 @@ export class CalcDF implements PluginOptions {
     terminate(): void {
         console.log("Calculo terminado, resultado: ", this.resultDF);
     }
+}
+
+export function createPlugin(params: {srcRepoPath: string, yearRepo: string}): PluginOptions {
+    return new CalcDF(params.srcRepoPath, params.yearRepo);
 }
