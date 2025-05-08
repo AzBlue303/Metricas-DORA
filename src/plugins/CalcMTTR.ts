@@ -20,7 +20,7 @@ export class CalcMTTR implements PluginOptions {
     inicialize(): void {
         console.log("Calculando Mean Time To Recovery...");
     }
-    async calcMetrics(...args: any[]): Promise<any> {
+    async calcMetrics(): Promise<any> {
         try {
             const git = simpleGit(this.repoPath);
             const tags = (await git.tags()).all;
@@ -64,6 +64,8 @@ export class CalcMTTR implements PluginOptions {
     terminate(): void {
         console.log("Calculo terminado, resultado: " + this.resultMTTR);
     }
+}
 
-
+export function createPlugin(params: {srcRepoPath: string, yearRepo: string}): PluginOptions {
+    return new CalcMTTR(params.srcRepoPath, params.yearRepo);
 }

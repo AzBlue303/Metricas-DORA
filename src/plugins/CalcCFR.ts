@@ -21,7 +21,7 @@ export class CalcCFR implements PluginOptions {
         console.log("Calculando Change Failure Rate...");
     }
 
-    async calcMetrics(...args: any[]): Promise<any> {
+    async calcMetrics(): Promise<any> {
         let versionesEstables = [];
         let versionesFallidas = [];
 
@@ -73,4 +73,8 @@ export class CalcCFR implements PluginOptions {
         console.log("Calculo terminado, resultado: ", this.resultCFR);
     }
 
+}
+
+export function createPlugin(params: { srcRepoPath: string; yearRepo: string }): PluginOptions {
+    return new CalcCFR(params.srcRepoPath, params.yearRepo);
 }
