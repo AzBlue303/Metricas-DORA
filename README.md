@@ -1,118 +1,58 @@
-# Calculo metricas dora
+# Métricas DORA
 
-## Explicacion del sistema
+Sistema que analiza un repositorio Git local y calcula las cuatro métricas **DevOps Research and Assessment (DORA)** para un año determinado:
 
-El sistema implementara un Kernel el cual se encargara de gestionar la conexion al repositorio a analizar y la especificacion del año que se estudiara. Ademas gestionara el uso de los plugins.
+| Métrica | Descripción |
+|---------|-------------|
+| **DF** — Deployment Frequency | Frecuencia de despliegues realizados |
+| **LTFC** — Lead Time for Changes | Tiempo promedio entre un commit y su despliegue |
+| **MTTR** — Mean Time to Recovery | Tiempo promedio de recuperación ante fallos |
+| **CFR** — Change Failure Rate | Porcentaje de cambios que generaron incidentes |
 
-Los plugins/funciones seran los encargados de calcular las metricas del sistema y de generar una foto del grafico dentro de la carpeta especificada por el usuario
+## Arquitectura
+
+Sigue una arquitectura de plugins: un `CoreSystem` gestiona la conexión al repositorio y delega el cálculo de cada métrica a un plugin independiente. Cada plugin implementa la interfaz `PluginOptions` (inicialización, cálculo, cierre). El plugin LTFC además genera un gráfico con `GraphGenerator`.
+
+## Requisitos
+
+- Node.js 18+
+- npm
+
+## Instalación
+
+```bash
+npm install
+```
+
+Dependencias de desarrollo:
+
+```bash
+npm install typescript @types/node nodemon --save-dev
+```
 
 ## Uso
 
-### Instalacion
-
-#### Depndencias del proyecto
-
 ```bash
-npm install simple-git
-```
-#### Dependencias de desarrollo
-
-```bash
-npm install typescript --save-dev
-npm install @types/node --save-dev
-npm install nodemon --save-dev
-```
-### Ejecucion
-
-```bash
+# Producción
 npm run start
-npm run dev -- ruta_del_repositorio_local/ carpeta_donde_guardar_grafico/ -df=true -ltfc=true -mttr=true -cfr=true
-```
-- En caso de no calcular alguna metrica cambie el true de esta por false.
-- Recuerde reemplazar las rutas por las reales.
-- 
-## Diagrama de Clases
 
-### Diagrama
-
-```plantuml
-@startuml
-
-package System {
-
-  interface CoreOptions {
-    +plugins
-    +srcPaths
-  }
-
-  class CoreSystem {
-    -pluginManager
-    -options
-    +calcMetrics()
-  }
-
-  class PluginManager {
-    -plugins
-    -srcRepo
-    -yearRepo
-    +loadPlugins()
-    +inicializePlugin()
-    +terminatePlugin()
-  }
-
-  class GraphGenerator{
-    -src
-    -data
-    +create()
-    +export()
-  }
-
-  CoreSystem --|> CoreOptions
-  CoreSystem *-- PluginManager
-}
-
-package Plugins {
-
-  interface PluginOptions {
-    +nameMetric
-    +initialize()
-    +calcMetric()
-    +terminate()
-  }
-
-  class CalcDF {
-  }
-
-  class CalcLTFC {
-  }
-
-  class CalcMTTR {
-  }
-
-  class CalcCFR {
-  }
-
-  CalcDF --|> PluginOptions
-  CalcLTFC --|> PluginOptions
-  CalcMTTR --|> PluginOptions
-  CalcCFR --|> PluginOptions
-
-  System.PluginManager *-- PluginOptions
-
-  CalcDF *-- System.GraphGenerator
-}
-
-@enduml
+# Desarrollo (hot-reload)
+npm run dev -- <ruta_repositorio>/ <carpeta_salida_graficos>/ [flags]
 ```
 
-### Explicacion Diagrama
+### Flags
 
-- CoreSystem: es la clase encargada de iniciar el systema, obtener y configurar los parametros enviando los necesarios a PluginManager.
-- PluginManager: el la clase encargada de cargar, inicializar y finalizar los plugins del sistema, dandoles a estos el src del repositorio objetivo y el año a analizar.
-- Interfaz Plugin: define lo que todos los plugins deben implementar, como lo son su inicializacion, el calculo de su metrica especifica y el termino de esta.
-- Interfaz CoreOptions: define las configuraciones necesarias para iniciar el CoreSystem.
-- GraphGenerator: clase que construlle y exporta el grafico del calculo LTFC.
-- CalcDF: es la clase que calcula Deployment Frecuency (DF).
-- CalcLTFC: es la clase que calcula Lead Time for Changes (LTFC) y que ocupa GraphGenerator para crear un grafico con los resultados.
-- CalcCFR: es la clase encargada de calcular Change Failure Rate (CFR).
-- CalcMTTR: es la clase encargada de calcular Mean Time to Recovery (MTTR).
+| Flag | Descripción |
+|------|-------------|
+| `-df=true\|false` | Calcular Deployment Frequency |
+| `-ltfc=true\|false` | Calcular Lead Time for Changes (genera gráfico) |
+| `-mttr=true\|false` | Calcular Mean Time to Recovery |
+| `-cfr=true\|false` | Calcular Change Failure Rate |
+
+### Ejemplo
+
+```bash
+npm run dev -- ./repositorio-objetivo/ ./graficos/ -df=true -ltfc=true -mttr=true -cfr=true
+```
+
+Los gráficos (LTFC) se exportan como imagen en la carpeta de salida especificada.
